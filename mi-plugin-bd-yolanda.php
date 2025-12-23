@@ -13,7 +13,7 @@ if ( ! defined('ABSPATH') ) exit; // Prevent direct access
    ========================= */
 
 // Target database name (external to WP DB)
-if ( ! defined('BDY_DB_NAME') ) define('BDY_DB_NAME', 'bd_yolanda');
+if ( ! defined('BDY_DB_NAME') ) define('BDY_DB_NAME', 'db_yolanda');
 
 // Same server (usually DB_HOST works: localhost / 127.0.0.1)
 if ( ! defined('BDY_DB_HOST') ) define('BDY_DB_HOST', 'localhost');
