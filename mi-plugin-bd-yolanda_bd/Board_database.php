@@ -44,7 +44,7 @@ class TEC_Empleados_CRUD {
    * - 'edit_posts' => editors/admins typically.
    */
   private function can_manage(): bool {
-    return is_user_logged_in() && current_user_can('edit_post');
+    return is_user_logged_in();
   }
 
   public function activate() {
