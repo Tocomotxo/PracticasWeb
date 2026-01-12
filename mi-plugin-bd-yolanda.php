@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: BD Yolanda - CRUD Empleados
- * Description: Front-end CRUD for bd-yolanda (NOMBRE, ID_EMPLEADO, TELEFONO, ROLL, PERMISOS, VIGENCIA_PERMISO) via shortcode.
+ * Description: Front-end CRUD for bd-yolanda (NOMBRE, ID_EMPLEADO, TELEFONO, ROL, PERMISOS, VIGENCIA_PERMISO) via shortcode.
  * Version: 1.0
  * Author: Yolanda
  */
@@ -223,7 +223,7 @@ function bdy_shortcode() {
     }
 
     ?>
-    <div style="padding:12px;border:1px solid #ddd;margin-bottom:16px;">
+    <div style="padding:6px;border:1px solid #ddd;margin-bottom:10px;">
         <h3 style="margin-top:0;"><?php echo $editing ? 'Editar empleado' : 'Añadir empleado'; ?></h3>
 
         <form method="post">
@@ -295,7 +295,7 @@ function bdy_shortcode() {
     </div>
 
     <h3>Empleados</h3>
-    <table border="1" cellpadding="6" style="border-collapse:collapse;width:100%;">
+    <table border="2" cellpadding="6" style="border-collapse:collapse;width:100%;">
         <thead>
             <tr>
                 <th>ID</th>
