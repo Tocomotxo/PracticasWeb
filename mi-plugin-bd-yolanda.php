@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: BD Yolanda - CRUD Empleados
- * Description: Front-end CRUD for bd-yolanda (NOMBRE, ID_EMPLEADO, TELEFONO, ROL, PERMISOS, VIGENCIA_PERMISO) via shortcode.
+ * Description: Front-end CRUD for db-yolanda (NOMBRE, ID_EMPLEADO, TELEFONO, ROLL, PERMISOS, VIGENCIA_PERMISO) via shortcode.
  * Version: 1.0
  * Author: Yolanda
  */
@@ -23,7 +23,7 @@ if ( ! defined('BDY_DB_HOST') ) define('BDY_DB_HOST', 'localhost');
 if ( ! defined('BDY_DB_USER') ) define('BDY_DB_USER', 'yolanda');
 if ( ! defined('BDY_DB_PASS') ) define('BDY_DB_PASS', 'pass1');
 
-// Table name inside bd-yolanda
+// Table name inside db-yolanda
 if ( ! defined('BDY_TABLE') ) define('BDY_TABLE', 'empleados');
 
 // Dropdown options (final values)
@@ -35,7 +35,7 @@ function bdy_permisos_options() : array {
 }
 
 /* =========================
-   DB connection (bd-yolanda)
+   DB connection (db-yolanda)
    ========================= */
 function bdy_db() : wpdb {
     static $db = null;
@@ -218,125 +218,316 @@ function bdy_shortcode() {
             'bad_date' => '⚠️ Fecha inválida (usa el calendario).',
         ];
         if ( isset($map[$msg]) ) {
-            echo '<div style="padding:10px;border:1px solid #ddd;margin:10px 0;">' . esc_html($map[$msg]) . '</div>';
+            echo '<div style="padding:12px;border:3px solid #ddd;margin:12px 0;">' . esc_html($map[$msg]) . '</div>';
         }
     }
-
     ?>
-    <div style="padding:6px;border:1px solid #ddd;margin-bottom:10px;">
-        <h3 style="margin-top:0;"><?php echo $editing ? 'Editar empleado' : 'Añadir empleado'; ?></h3>
+<div class="bdy-layout">
+  <div class="bdy-card" style="padding:12px;border:3px solid #ddd;margin-bottom:12px;">
+    <style>
+      .bdy-form input[type="text"],
+      .bdy-form input[type="date"],
+      .bdy-form select{
+        height: 36px;
+        padding: 6px 8px;
+        box-sizing: border-box;
+      }
+      /* BOTÓN PRINCIPAL */
+      .bdy-form button[type="submit"]{
+        height: 44px;
+        border: none;
+        border-radius: 10px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        cursor: pointer;
+        box-shadow: 0 6px 16px rgba(0,0,0,.12);
+        transition: transform .08s ease, box-shadow .2s ease, filter .2s ease;
+      }
+      .bdy-form button[type="submit"]:hover{
+        filter: brightness(1.05);
+        box-shadow: 0 10px 22px rgba(0,0,0,.18);
+      }
+      .bdy-form button[type="submit"]:active{
+        transform: translateY(1px);
+        box-shadow: 0 5px 12px rgba(0,0,0,.14);
+      }
+      /* TÍTULO DEL FORMULARIO */
+      .bdy-title{
+        margin: 0 0 18px 0;
+        font-size: 22px;
+        font-weight: 700;
+        color: #00b3a4;/* mismo color que el botón */
+        letter-spacing: .5px;
+      }
+      /* CAMPOS DEL FORMULARIO EN NEGRITA*/
+      .bdy-form label{
+        font-weight: 700;
+      }
+      /* BOTON BORRAR (peligroso) */
+      .bdy-delete{
+        background:#ffecec;
+        border:1px solid #ff9a9a;
+        color:#b30000;
+        font-weight:700;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .bdy-delete:hover{
+        filter: brightness(0.98);
+      }
+      /* CABECERA DE LA TABLA */
+      .bdy-table thead th{
+        background:#f4f7f7;
+        font-weight:700;
+      }
+      /* BOTON EDITAR*/
+      .bdy-edit-link{
+        color:#00b3a4;
+        font-weight:700;
+        text-decoration:none;
+        margin-right: 10px;
+        display: inline-block;
+      }
+      .bdy-edit-link:hover{
+        text-decoration:underline;
+      }
+      /* Centrar y compactar la columna ACCIONES */
+      .bdy-table th:last-child,
+      .bdy-table td:last-child{
+        text-align: center;
+        white-space: nowrap;
+      }
+      /* Hover en filas (mejor lectura) */
+      .bdy-table tbody tr:hover{
+        background: #f7fbfb;
+      }
+      /* CABECERA: titulo a la izquierda + buscador a la derecha */
+      .bdy-table-head{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
+        margin: 8px 0 10px 0;
+      }
+      .bdy-search{
+        display:flex;
+        align-items:center;
+        gap:8px;
+      }
+      .bdy-search input{
+        height: 36px;
+        padding: 6px 10px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        min-width: 260px;
+        box-sizing: border-box;
+      }
 
-        <form method="post">
-            <?php wp_nonce_field('bdy_nonce_action', 'bdy_nonce'); ?>
-            <input type="hidden" name="bdy_action" value="<?php echo $editing ? 'update' : 'add'; ?>">
-            <?php if ($editing): ?>
-                <input type="hidden" name="id" value="<?php echo esc_attr($editing->id); ?>">
-            <?php endif; ?>
+      /* LAYOUT 2 COLUMNAS: formulario izq + hueco der */
+      .bdy-layout{
+        display: grid;
+        grid-template-columns: 2fr 1fr; /* ✅ CAMBIO: formulario más ancho */
+        gap: 24px;
+        align-items: start;
+      }
 
-            <p>
-                <label>NOMBRE<br>
-                    <input type="text" name="nombre" required value="<?php echo esc_attr($editing->nombre ?? ''); ?>">
-                </label>
-            </p>
+      .bdy-card{
+        width: 100% !important;
+        max-width: 100%;
+      }
 
-            <p>
-                <label>ID_EMPLEADO<br>
-                    <input type="text" name="id_empleado" required value="<?php echo esc_attr($editing->id_empleado ?? ''); ?>">
-                </label>
-            </p>
+      /* Hueco derecho (vacío) */
+      .bdy-right-space{
+        width: 100%;
+        min-height: 220px; /* ajusta si lo quieres más alto/bajo */
+      }
 
-            <p>
-                <label>TELEFONO<br>
-                    <input type="text" name="telefono" required value="<?php echo esc_attr($editing->telefono ?? ''); ?>">
-                </label>
-            </p>
+      /* Tabla ocupa todo el ancho (cuando está abajo) */
+      .bdy-table{
+        width: 100% !important;
+        table-layout: auto;
+      }
 
-            <p>
-                <label>ROLL<br>
-                    <select name="rol" required>
-                        <?php
-                        $current_role = $editing->rol ?? $roles[0];
-                        foreach ($roles as $r) {
-                            $sel = ($current_role === $r) ? 'selected' : '';
-                            echo '<option value="' . esc_attr($r) . '" ' . $sel . '>' . esc_html($r) . '</option>';
-                        }
-                        ?>
-                    </select>
-                </label>
-            </p>
+      /* Responsive */
+      @media (max-width: 980px){
+        .bdy-layout{
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
 
-            <p>
-                <label>PERMISOS<br>
-                    <select name="permisos" required>
-                        <?php
-                        $current_perm = $editing->permisos ?? $perms[0];
-                        foreach ($perms as $p) {
-                            $sel = ($current_perm === $p) ? 'selected' : '';
-                            echo '<option value="' . esc_attr($p) . '" ' . $sel . '>' . esc_html($p) . '</option>';
-                        }
-                        ?>
-                    </select>
-                </label>
-            </p>
+    <h3 class="bdy-title"><?php echo $editing ? 'Editar empleado' : 'Añadir empleado'; ?></h3>
 
-            <p>
-                <label>VIGENCIA DE PERMISO<br>
-                    <input type="date" name="vigencia_permiso" required
-                           value="<?php echo esc_attr($editing->vigencia_permiso ?? ''); ?>">
-                </label>
-            </p>
+    <form method="post" class="bdy-form"
+      style="display:grid;grid-template-columns:1fr 1fr;gap:14px 20px;align-items:start;">
+      <?php wp_nonce_field('bdy_nonce_action', 'bdy_nonce'); ?>
+      <input type="hidden" name="bdy_action" value="<?php echo $editing ? 'update' : 'add'; ?>">
+      <?php if ($editing): ?>
+        <input type="hidden" name="id" value="<?php echo esc_attr($editing->id); ?>">
+      <?php endif; ?>
 
-            <button type="submit"><?php echo $editing ? 'Guardar cambios' : 'Añadir'; ?></button>
+      <div>
+        <label>NOMBRE<br>
+          <input type="text" name="nombre" required style="width:100%;"
+            value="<?php echo esc_attr($editing->nombre ?? ''); ?>">
+        </label>
+      </div>
 
-            <?php if ($editing): ?>
-                <a style="margin-left:10px;" href="<?php echo esc_url(remove_query_arg('edit_id')); ?>">Cancelar</a>
-            <?php endif; ?>
-        </form>
-    </div>
+      <div>
+        <label>ID_EMPLEADO<br>
+          <input type="text" name="id_empleado" required style="width:100%;"
+            value="<?php echo esc_attr($editing->id_empleado ?? ''); ?>">
+        </label>
+      </div>
 
-    <h3>Empleados</h3>
-    <table border="2" cellpadding="6" style="border-collapse:collapse;width:100%;">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>NOMBRE</th>
-                <th>ID_EMPLEADO</th>
-                <th>TELEFONO</th>
-                <th>ROLL</th>
-                <th>PERMISOS</th>
-                <th>VIGENCIA</th>
-                <th>ACCIONES</th>
-            </tr>
-        </thead>
-        <tbody>
-        <?php if (empty($rows)): ?>
-            <tr><td colspan="8">No hay datos aún.</td></tr>
-        <?php else: ?>
-            <?php foreach ($rows as $r): ?>
-                <tr>
-                    <td><?php echo esc_html($r->id); ?></td>
-                    <td><?php echo esc_html($r->nombre); ?></td>
-                    <td><?php echo esc_html($r->id_empleado); ?></td>
-                    <td><?php echo esc_html($r->telefono); ?></td>
-                    <td><?php echo esc_html($r->rol); ?></td>
-                    <td><?php echo esc_html($r->permisos); ?></td>
-                    <td><?php echo esc_html($r->vigencia_permiso); ?></td>
-                    <td>
-                        <a href="<?php echo esc_url(add_query_arg('edit_id', $r->id)); ?>">Editar</a>
+      <div>
+        <label>TELEFONO<br>
+          <input type="text" name="telefono" required style="width:100%;"
+            value="<?php echo esc_attr($editing->telefono ?? ''); ?>">
+        </label>
+      </div>
 
-                        <form method="post" style="display:inline;" onsubmit="return confirm('¿Seguro que quieres borrar este registro?');">
-                            <?php wp_nonce_field('bdy_nonce_action', 'bdy_nonce'); ?>
-                            <input type="hidden" name="bdy_action" value="delete">
-                            <input type="hidden" name="id" value="<?php echo esc_attr($r->id); ?>">
-                            <button type="submit" style="margin-left:8px;">Borrar</button>
-                        </form>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
+      <div>
+        <label>ROL<br>
+          <select name="rol" required style="width:100%;">
+            <?php
+              $current_role = $editing->rol ?? $roles[0];
+              foreach ($roles as $r) {
+                $sel = ($current_role === $r) ? 'selected' : '';
+                echo '<option value="' . esc_attr($r) . '" ' . $sel . '>' . esc_html($r) . '</option>';
+              }
+            ?>
+          </select>
+        </label>
+      </div>
+
+      <div>
+        <label>PERMISOS<br>
+          <select name="permisos" required style="width:100%;">
+            <?php
+              $current_perm = $editing->permisos ?? $perms[0];
+              foreach ($perms as $p) {
+                $sel = ($current_perm === $p) ? 'selected' : '';
+                echo '<option value="' . esc_attr($p) . '" ' . $sel . '>' . esc_html($p) . '</option>';
+              }
+            ?>
+          </select>
+        </label>
+      </div>
+
+      <div>
+        <label>VIGENCIA DE PERMISO<br>
+          <input type="date" name="vigencia_permiso" required style="width:100%;"
+            value="<?php echo esc_attr($editing->vigencia_permiso ?? ''); ?>">
+        </label>
+      </div>
+
+      <div style="grid-column:1 / -1;">
+        <button type="submit" style="width:100%;padding:10px;">
+          <?php echo $editing ? 'Guardar cambios' : 'Añadir'; ?>
+        </button>
+
+        <?php if ($editing): ?>
+          <a style="margin-left:10px;" href="<?php echo esc_url(remove_query_arg('edit_id')); ?>">Cancelar</a>
         <?php endif; ?>
-        </tbody>
-    </table>
-    <?php
+      </div>
+    </form>
+  </div>
 
-    return ob_get_clean();
+  <!-- Columna derecha vacía -->
+  <div class="bdy-right-space"></div>
+</div> <!-- /bdy-layout -->
+
+
+<!-- TABLA ABAJO A LO ANCHO (como estaba originalmente) -->
+<div class="bdy-table-head">
+  <h3 class="bdy-title" style="margin:0;">Empleados</h3>
+  <div class="bdy-search">
+    <input
+      type="text"
+      id="bdyEmployeeSearch"
+      placeholder="Buscar por nombre, ID, teléfono…"
+      aria-label="Buscar empleado"
+    >
+  </div>
+</div>
+
+<table id="bdyEmployeeTable" class="bdy-table" border="2" cellpadding="10" style="border-collapse:collapse;width:100%;">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>NOMBRE</th>
+      <th>ID_EMPLEADO</th>
+      <th>TELEFONO</th>
+      <th>ROL</th>
+      <th>PERMISOS</th>
+      <th>VIGENCIA</th>
+      <th>ACCIONES</th>
+    </tr>
+  </thead>
+  <tbody>
+    <?php if (empty($rows)): ?>
+      <tr><td colspan="8">No hay datos aún.</td></tr>
+    <?php else: ?>
+      <?php foreach ($rows as $r): ?>
+        <tr>
+          <td><?php echo esc_html($r->id); ?></td>
+          <td><?php echo esc_html($r->nombre); ?></td>
+          <td><?php echo esc_html($r->id_empleado); ?></td>
+          <td><?php echo esc_html($r->telefono); ?></td>
+          <td><?php echo esc_html($r->rol); ?></td>
+          <td><?php echo esc_html($r->permisos); ?></td>
+          <td><?php echo esc_html($r->vigencia_permiso); ?></td>
+          <td>
+            <a class="bdy-edit-link" href="<?php echo esc_url(add_query_arg('edit_id', $r->id)); ?>">Editar</a>
+
+            <form method="post" style="display:inline;" onsubmit="return confirm('¿Seguro que quieres borrar este registro?');">
+              <?php wp_nonce_field('bdy_nonce_action', 'bdy_nonce'); ?>
+              <input type="hidden" name="bdy_action" value="delete">
+              <input type="hidden" name="id" value="<?php echo esc_attr($r->id); ?>">
+              <button type="submit" class="bdy-delete" style="margin-left:8px;">BORRAR</button>
+            </form>
+          </td>
+        </tr>
+      <?php endforeach; ?>
+    <?php endif; ?>
+  </tbody>
+</table>
+
+<script>
+(function(){
+  const input = document.getElementById('bdyEmployeeSearch');
+  const table = document.getElementById('bdyEmployeeTable');
+  if(!input || !table) return;
+
+  const tbody = table.querySelector('tbody');
+  if(!tbody) return;
+
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+
+  function normalize(s){
+    return (s || '')
+      .toString()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g,'');
+  }
+
+  input.addEventListener('input', function(){
+    const q = normalize(input.value.trim());
+
+    rows.forEach(tr => {
+      const isEmptyRow = tr.querySelectorAll('td').length === 1;
+      if (isEmptyRow) return;
+
+      const text = normalize(tr.innerText);
+      tr.style.display = text.includes(q) ? '' : 'none';
+    });
+  });
+})();
+</script>
+
+<?php
+return ob_get_clean();
 }
