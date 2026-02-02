@@ -60,10 +60,6 @@ function bdy_create_table() {
     $table = BDY_TABLE;
     $charset_collate = $db->get_charset_collate();
 
-    // Columns:
-    // nombre, id_empleado, telefono (editable text)
-    // rol, permisos (dropdown)
-    // vigencia_permiso (date picker)
     $sql = "CREATE TABLE IF NOT EXISTS `$table` (
         `id` BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
         `nombre` VARCHAR(100) NOT NULL,
@@ -87,7 +83,6 @@ function bdy_create_table() {
    Permission check
    ========================= */
 function bdy_can_manage() : bool {
-    // Default: only admins. Change if you want other WP roles.
     return current_user_can('manage_options');
 }
 
@@ -222,6 +217,102 @@ function bdy_shortcode() {
         }
     }
     ?>
+
+<!-- =========================
+     TABLA PRIMERO (arriba)
+     ========================= -->
+<div class="bdy-table-head">
+  <h3 class="bdy-title" style="margin:0;">Empleados</h3>
+  <div class="bdy-search">
+    <input
+      type="text"
+      id="bdyEmployeeSearch"
+      placeholder="Buscar por nombre, ID, teléfono…"
+      aria-label="Buscar empleado"
+    >
+  </div>
+</div>
+
+<table id="bdyEmployeeTable" class="bdy-table" border="2" cellpadding="10" style="border-collapse:collapse;width:100%;">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>NOMBRE</th>
+      <th>ID_EMPLEADO</th>
+      <th>TELEFONO</th>
+      <th>ROL</th>
+      <th>PERMISOS</th>
+      <th>VIGENCIA</th>
+      <th>ACCIONES</th>
+    </tr>
+  </thead>
+  <tbody>
+    <?php if (empty($rows)): ?>
+      <tr><td colspan="8">No hay datos aún.</td></tr>
+    <?php else: ?>
+      <?php foreach ($rows as $r): ?>
+        <tr>
+          <td><?php echo esc_html($r->id); ?></td>
+          <td><?php echo esc_html($r->nombre); ?></td>
+          <td><?php echo esc_html($r->id_empleado); ?></td>
+          <td><?php echo esc_html($r->telefono); ?></td>
+          <td><?php echo esc_html($r->rol); ?></td>
+          <td><?php echo esc_html($r->permisos); ?></td>
+          <td><?php echo esc_html($r->vigencia_permiso); ?></td>
+          <td>
+            <a class="bdy-edit-link" href="<?php echo esc_url(add_query_arg('edit_id', $r->id)); ?>">Editar</a>
+
+            <form method="post" style="display:inline;" onsubmit="return confirm('¿Seguro que quieres borrar este registro?');">
+              <?php wp_nonce_field('bdy_nonce_action', 'bdy_nonce'); ?>
+              <input type="hidden" name="bdy_action" value="delete">
+              <input type="hidden" name="id" value="<?php echo esc_attr($r->id); ?>">
+              <button type="submit" class="bdy-delete" style="margin-left:8px;">BORRAR</button>
+            </form>
+          </td>
+        </tr>
+      <?php endforeach; ?>
+    <?php endif; ?>
+  </tbody>
+</table>
+
+<script>
+(function(){
+  const input = document.getElementById('bdyEmployeeSearch');
+  const table = document.getElementById('bdyEmployeeTable');
+  if(!input || !table) return;
+
+  const tbody = table.querySelector('tbody');
+  if(!tbody) return;
+
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+
+  function normalize(s){
+    return (s || '')
+      .toString()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g,'');
+  }
+
+  input.addEventListener('input', function(){
+    const q = normalize(input.value.trim());
+
+    rows.forEach(tr => {
+      const isEmptyRow = tr.querySelectorAll('td').length === 1;
+      if (isEmptyRow) return;
+
+      const text = normalize(tr.innerText);
+      tr.style.display = text.includes(q) ? '' : 'none';
+    });
+  });
+})();
+</script>
+
+<br><br>
+
+<!-- =========================
+     FORMULARIO DESPUÉS (tu bloque intacto)
+     ========================= -->
 <div class="bdy-layout">
   <div class="bdy-card" style="padding:12px;border:3px solid #ddd;margin-bottom:12px;">
     <style>
@@ -438,95 +529,6 @@ function bdy_shortcode() {
   <!-- Columna derecha vacía -->
   <div class="bdy-right-space"></div>
 </div> <!-- /bdy-layout -->
-
-
-<!-- TABLA ABAJO A LO ANCHO (como estaba originalmente) -->
-<div class="bdy-table-head">
-  <h3 class="bdy-title" style="margin:0;">Empleados</h3>
-  <div class="bdy-search">
-    <input
-      type="text"
-      id="bdyEmployeeSearch"
-      placeholder="Buscar por nombre, ID, teléfono…"
-      aria-label="Buscar empleado"
-    >
-  </div>
-</div>
-
-<table id="bdyEmployeeTable" class="bdy-table" border="2" cellpadding="10" style="border-collapse:collapse;width:100%;">
-  <thead>
-    <tr>
-      <th>ID</th>
-      <th>NOMBRE</th>
-      <th>ID_EMPLEADO</th>
-      <th>TELEFONO</th>
-      <th>ROL</th>
-      <th>PERMISOS</th>
-      <th>VIGENCIA</th>
-      <th>ACCIONES</th>
-    </tr>
-  </thead>
-  <tbody>
-    <?php if (empty($rows)): ?>
-      <tr><td colspan="8">No hay datos aún.</td></tr>
-    <?php else: ?>
-      <?php foreach ($rows as $r): ?>
-        <tr>
-          <td><?php echo esc_html($r->id); ?></td>
-          <td><?php echo esc_html($r->nombre); ?></td>
-          <td><?php echo esc_html($r->id_empleado); ?></td>
-          <td><?php echo esc_html($r->telefono); ?></td>
-          <td><?php echo esc_html($r->rol); ?></td>
-          <td><?php echo esc_html($r->permisos); ?></td>
-          <td><?php echo esc_html($r->vigencia_permiso); ?></td>
-          <td>
-            <a class="bdy-edit-link" href="<?php echo esc_url(add_query_arg('edit_id', $r->id)); ?>">Editar</a>
-
-            <form method="post" style="display:inline;" onsubmit="return confirm('¿Seguro que quieres borrar este registro?');">
-              <?php wp_nonce_field('bdy_nonce_action', 'bdy_nonce'); ?>
-              <input type="hidden" name="bdy_action" value="delete">
-              <input type="hidden" name="id" value="<?php echo esc_attr($r->id); ?>">
-              <button type="submit" class="bdy-delete" style="margin-left:8px;">BORRAR</button>
-            </form>
-          </td>
-        </tr>
-      <?php endforeach; ?>
-    <?php endif; ?>
-  </tbody>
-</table>
-
-<script>
-(function(){
-  const input = document.getElementById('bdyEmployeeSearch');
-  const table = document.getElementById('bdyEmployeeTable');
-  if(!input || !table) return;
-
-  const tbody = table.querySelector('tbody');
-  if(!tbody) return;
-
-  const rows = Array.from(tbody.querySelectorAll('tr'));
-
-  function normalize(s){
-    return (s || '')
-      .toString()
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g,'');
-  }
-
-  input.addEventListener('input', function(){
-    const q = normalize(input.value.trim());
-
-    rows.forEach(tr => {
-      const isEmptyRow = tr.querySelectorAll('td').length === 1;
-      if (isEmptyRow) return;
-
-      const text = normalize(tr.innerText);
-      tr.style.display = text.includes(q) ? '' : 'none';
-    });
-  });
-})();
-</script>
 
 <?php
 return ob_get_clean();
