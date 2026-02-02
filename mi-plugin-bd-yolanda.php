@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: BD Yolanda - CRUD Empleados
- * Description: Front-end CRUD for db-yolanda (NOMBRE, ID_EMPLEADO, TELEFONO, ROLL, PERMISOS, VIGENCIA_PERMISO) via shortcode.
+ * Description: Front-end CRUD for db-yolanda (NOMBRE, TELEFONO, ROLL, PERMISOS, VIGENCIA_PERMISO) via shortcode.
  * Version: 1.0
  * Author: Yolanda
  */
@@ -60,6 +60,8 @@ function bdy_create_table() {
     $table = BDY_TABLE;
     $charset_collate = $db->get_charset_collate();
 
+    // Nota: mantenemos la columna id_empleado en DB por compatibilidad,
+    // aunque ya no se use en el formulario/tabla.
     $sql = "CREATE TABLE IF NOT EXISTS `$table` (
         `id` BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
         `nombre` VARCHAR(100) NOT NULL,
@@ -83,6 +85,7 @@ function bdy_create_table() {
    Permission check
    ========================= */
 function bdy_can_manage() : bool {
+    // Default: only admins. Change if you want other WP roles.
     return current_user_can('manage_options');
 }
 
@@ -115,14 +118,13 @@ function bdy_handle_actions() {
 
     if ( $action === 'add' || $action === 'update' ) {
         $nombre   = isset($_POST['nombre']) ? sanitize_text_field($_POST['nombre']) : '';
-        $idemple  = isset($_POST['id_empleado']) ? sanitize_text_field($_POST['id_empleado']) : '';
         $telefono = isset($_POST['telefono']) ? sanitize_text_field($_POST['telefono']) : '';
         $rol      = isset($_POST['rol']) ? sanitize_text_field($_POST['rol']) : '';
         $permisos = isset($_POST['permisos']) ? sanitize_text_field($_POST['permisos']) : '';
         $vigencia = isset($_POST['vigencia_permiso']) ? sanitize_text_field($_POST['vigencia_permiso']) : '';
 
-        // Basic checks
-        if ( ! $nombre || ! $idemple || ! $telefono || ! $vigencia ) {
+        // Basic checks (id_empleado eliminado)
+        if ( ! $nombre || ! $telefono || ! $vigencia ) {
             wp_safe_redirect( add_query_arg('bdy_msg', 'missing', $redirect) );
             exit;
         }
@@ -136,9 +138,9 @@ function bdy_handle_actions() {
             exit;
         }
 
+        // id_empleado eliminado
         $data = [
             'nombre'           => $nombre,
-            'id_empleado'      => $idemple,
             'telefono'         => $telefono,
             'rol'              => $rol,
             'permisos'         => $permisos,
@@ -147,7 +149,8 @@ function bdy_handle_actions() {
     }
 
     if ( $action === 'add' ) {
-        $db->insert($table, $data, ['%s','%s','%s','%s','%s','%s']);
+        // 5 campos -> 5 formatos
+        $db->insert($table, $data, ['%s','%s','%s','%s','%s']);
         wp_safe_redirect( add_query_arg('bdy_msg', 'added', $redirect) );
         exit;
     }
@@ -159,7 +162,8 @@ function bdy_handle_actions() {
             exit;
         }
 
-        $db->update($table, $data, ['id' => $id], ['%s','%s','%s','%s','%s','%s'], ['%d']);
+        // 5 campos -> 5 formatos
+        $db->update($table, $data, ['id' => $id], ['%s','%s','%s','%s','%s'], ['%d']);
         wp_safe_redirect( add_query_arg('bdy_msg', 'updated', $redirect) );
         exit;
     }
@@ -219,7 +223,7 @@ function bdy_shortcode() {
     ?>
 
 <!-- =========================
-     TABLA PRIMERO (arriba)
+     TABLA PRIMERO
      ========================= -->
 <div class="bdy-table-head">
   <h3 class="bdy-title" style="margin:0;">Empleados</h3>
@@ -227,7 +231,7 @@ function bdy_shortcode() {
     <input
       type="text"
       id="bdyEmployeeSearch"
-      placeholder="Buscar por nombre, ID, teléfono…"
+      placeholder="Buscar por nombre, teléfono…"
       aria-label="Buscar empleado"
     >
   </div>
@@ -238,7 +242,6 @@ function bdy_shortcode() {
     <tr>
       <th>ID</th>
       <th>NOMBRE</th>
-      <th>ID_EMPLEADO</th>
       <th>TELEFONO</th>
       <th>ROL</th>
       <th>PERMISOS</th>
@@ -248,13 +251,12 @@ function bdy_shortcode() {
   </thead>
   <tbody>
     <?php if (empty($rows)): ?>
-      <tr><td colspan="8">No hay datos aún.</td></tr>
+      <tr><td colspan="7">No hay datos aún.</td></tr>
     <?php else: ?>
       <?php foreach ($rows as $r): ?>
         <tr>
           <td><?php echo esc_html($r->id); ?></td>
           <td><?php echo esc_html($r->nombre); ?></td>
-          <td><?php echo esc_html($r->id_empleado); ?></td>
           <td><?php echo esc_html($r->telefono); ?></td>
           <td><?php echo esc_html($r->rol); ?></td>
           <td><?php echo esc_html($r->permisos); ?></td>
@@ -313,6 +315,7 @@ function bdy_shortcode() {
 <!-- =========================
      FORMULARIO DESPUÉS (tu bloque intacto)
      ========================= -->
+
 <div class="bdy-layout">
   <div class="bdy-card" style="padding:12px;border:3px solid #ddd;margin-bottom:12px;">
     <style>
@@ -462,13 +465,6 @@ function bdy_shortcode() {
         <label>NOMBRE<br>
           <input type="text" name="nombre" required style="width:100%;"
             value="<?php echo esc_attr($editing->nombre ?? ''); ?>">
-        </label>
-      </div>
-
-      <div>
-        <label>ID_EMPLEADO<br>
-          <input type="text" name="id_empleado" required style="width:100%;"
-            value="<?php echo esc_attr($editing->id_empleado ?? ''); ?>">
         </label>
       </div>
 
