@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BD Yolanda - CRUD Empleados
  * Description: Front-end CRUD for db-yolanda (NOMBRE, TELEFONO, ROL, PERMISOS, VIGENCIA_PERMISO) via shortcode.
- * Version: 1.5.1
+ * Version: 1.5.2
  * Author: Yolanda
  */
 
@@ -19,6 +19,18 @@ if ( ! defined('BDY_TABLE') ) define('BDY_TABLE', 'empleados');
 
 function bdy_roles_options() : array { return ['Conductor', 'Mecánico']; }
 function bdy_permisos_options() : array { return ['Nivel 1', 'Nivel 2']; }
+
+/**
+ * CLAVE DE SEGURIDAD (SHA-256)
+ * Clave fuerte generada (GUÁRDALA):
+ *   -?#1apPvOkZkNcNb@I=gELhE-L#??VTFUUt73+lV
+ * 
+ * Hash SHA-256 de esa clave:
+ *   531e5a93c883e9dc778ac6e34026c1eeda131225de211e81a5b9f0e79d62209c
+ */
+if ( ! defined('BDY_SECURITY_HASH') ) {
+    define('BDY_SECURITY_HASH', '531e5a93c883e9dc778ac6e34026c1eeda131225de211e81a5b9f0e79d62209c');
+}
 
 /* =========================
    DB connection
@@ -39,6 +51,17 @@ function bdy_db() : wpdb {
    ========================= */
 function bdy_can_manage() : bool {
     return current_user_can('manage_options');
+}
+
+/* =========================
+   ✅ Security key verify (SHA-256)
+   ========================= */
+function bdy_verify_security_key(string $plain_key) : bool {
+    $plain_key = trim($plain_key);
+    if ($plain_key === '') return false;
+
+    $calc = hash('sha256', $plain_key);
+    return hash_equals(BDY_SECURITY_HASH, $calc);
 }
 
 /* =========================
@@ -131,6 +154,7 @@ function bdy_next_available_id(wpdb $db, string $table) : int {
     // Si no hay huecos, el siguiente es el último + 1
     return $expected;
 }
+
 /* =========================
    Handle POST actions
    ========================= */
@@ -149,6 +173,15 @@ function bdy_handle_actions() {
 
     $redirect = wp_get_referer() ? wp_get_referer() : home_url('/');
     $redirect = remove_query_arg(['bdy_msg', 'edit_id'], $redirect);
+
+    // ✅ Pedir clave para acciones sensibles (add/update/delete)
+    if (in_array($action, ['add','update','delete'], true)) {
+        $key = isset($_POST['bdy_key']) ? (string) $_POST['bdy_key'] : '';
+        if ( ! bdy_verify_security_key($key) ) {
+            wp_safe_redirect( add_query_arg('bdy_msg', 'bad_key', $redirect) );
+            exit;
+        }
+    }
 
     $roles_allowed = bdy_roles_options();
     $perms_allowed = bdy_permisos_options();
@@ -335,6 +368,7 @@ function bdy_shortcode() {
             'deleted'  => '✅ Registro eliminado.',
             'missing'  => '⚠️ Faltan datos.',
             'bad_date' => '⚠️ Fecha inválida (usa el calendario).',
+            'bad_key'  => '❌ Clave de seguridad incorrecta.',
             'db_error' => '❌ Error en base de datos. Revisa el log del servidor.',
         ];
         if ( isset($map[$msg]) ) {
@@ -378,10 +412,12 @@ function bdy_shortcode() {
             <td class="<?php echo esc_attr($vig_class); ?>"><?php echo esc_html($r->vigencia_permiso); ?></td>
             <td>
               <a class="bdy-edit-link" href="<?php echo esc_url(add_query_arg('edit_id', $r->id)); ?>">Editar</a>
-              <form method="post" style="display:inline;" onsubmit="return confirm('¿Seguro que quieres borrar este registro?');">
+
+              <form method="post" class="bdy-delete-form" style="display:inline;" onsubmit="return confirm('¿Seguro que quieres borrar este registro?');">
                 <?php wp_nonce_field('bdy_nonce_action', 'bdy_nonce'); ?>
                 <input type="hidden" name="bdy_action" value="delete">
                 <input type="hidden" name="id" value="<?php echo esc_attr($r->id); ?>">
+                <input type="hidden" name="bdy_key" class="bdy-key-field" value="">
                 <button type="submit" class="bdy-delete" style="margin-left:8px;">BORRAR</button>
               </form>
             </td>
@@ -415,10 +451,11 @@ function bdy_shortcode() {
           <div class="bdy-card-actions">
             <a class="bdy-edit-link" href="<?php echo esc_url(add_query_arg('edit_id', $r->id)); ?>">Editar</a>
 
-            <form method="post" style="display:inline;" onsubmit="return confirm('¿Seguro que quieres borrar este registro?');">
+            <form method="post" class="bdy-delete-form" style="display:inline;" onsubmit="return confirm('¿Seguro que quieres borrar este registro?');">
               <?php wp_nonce_field('bdy_nonce_action', 'bdy_nonce'); ?>
               <input type="hidden" name="bdy_action" value="delete">
               <input type="hidden" name="id" value="<?php echo esc_attr($r->id); ?>">
+              <input type="hidden" name="bdy_key" class="bdy-key-field" value="">
               <button type="submit" class="bdy-delete">BORRAR</button>
             </form>
           </div>
@@ -471,6 +508,25 @@ function bdy_shortcode() {
 })();
 </script>
 
+<script>
+(function(){
+  function attachDeleteKeyPrompts(){
+    document.querySelectorAll('form.bdy-delete-form').forEach(form => {
+      if (form.dataset.keyPromptAttached) return;
+      form.dataset.keyPromptAttached = "1";
+
+      form.addEventListener('submit', function(e){
+        const key = window.prompt('Introduce la clave de seguridad para BORRAR:');
+        if (!key) { e.preventDefault(); return; }
+        const hidden = form.querySelector('.bdy-key-field');
+        if (hidden) hidden.value = key;
+      });
+    });
+  }
+  attachDeleteKeyPrompts();
+})();
+</script>
+
 <br><br>
 
 <div class="bdy-layout">
@@ -478,6 +534,7 @@ function bdy_shortcode() {
     <style>
       .bdy-form input[type="text"],
       .bdy-form input[type="date"],
+      .bdy-form input[type="password"],
       .bdy-form select{ height:36px; padding:6px 8px; box-sizing:border-box; }
 
       .bdy-form button[type="submit"]{
@@ -589,6 +646,12 @@ function bdy_shortcode() {
       <div>
         <label>VIGENCIA DE PERMISO<br>
           <input type="date" name="vigencia_permiso" required style="width:100%;" value="<?php echo esc_attr($editing->vigencia_permiso ?? ''); ?>">
+        </label>
+      </div>
+
+      <div>
+        <label>CLAVE DE SEGURIDAD<br>
+          <input type="password" name="bdy_key" required style="width:100%;" autocomplete="current-password">
         </label>
       </div>
 
